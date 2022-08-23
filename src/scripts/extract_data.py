@@ -69,12 +69,12 @@ def sub_mean(src, dst, has_forces):
     loader = spk.data.AtomsLoader(src, batch_size=100,
                                   num_workers=4, pin_memory=True)
     print(src.available_properties)
-    mean, stddev = loader.get_statistics('energy', True)
-    mean = float(mean['energy'].numpy())
+    #mean, stddev = loader.get_statistics('energy', True)
+    #mean = float(mean['energy'].numpy())
 
-    with connect(src.dbpath) as database:
-        n_orbitals = get_number_orbitals(database)
-        mean_orb_energies = get_average_energies(database, n_orbitals)
+    #with connect(src.dbpath) as database:
+    #    n_orbitals = get_number_orbitals(database)
+    #    mean_orb_energies = get_average_energies(database, n_orbitals)
 
     print('Write final DB')
     for i in tqdm(range(len(src))):
@@ -84,7 +84,6 @@ def sub_mean(src, dst, has_forces):
         E = props['energy'].numpy()
         if has_forces:
             F = props['forces'].numpy()
-
             new_props = {
                 'hamiltonian': H, 'overlap': S, 'energy': E - mean, 'forces': F,
             }
@@ -97,8 +96,8 @@ def sub_mean(src, dst, has_forces):
     with connect(src.dbpath) as conn1:
         md = conn1.metadata
 
-    md['mean_energy'] = mean
-    md['orbital_energies'] = mean_orb_energies.tolist()
+    #md['mean_energy'] = mean
+    #md['orbital_energies'] = mean_orb_energies.tolist()
 
     with connect(dst.dbpath) as conn2:
         pass
