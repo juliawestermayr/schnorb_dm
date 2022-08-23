@@ -52,6 +52,9 @@ def get_parser():
                               help='Path / destination to (re)store model')
     train_parser.add_argument('--seed', type=int, default=None,
                               help='Set random seed for torch and numpy.')
+    train_parser.add_argument('--offdiagonals', help='Train offdiagonal matrix only. Rest of the matrix will be masked',
+                              action='store_true')
+
     train_parser.add_argument('--overwrite', help='Remove previous results.',
                               action='store_true')
 
@@ -106,6 +109,9 @@ def get_parser():
     eval_parser.add_argument('--reference_data', type=str, nargs='+',
                              default=None,
                              help='Path to directories containing FHI aims ouput. Used once to initialize data set')
+
+    eval_parser.add_argument('--offdiagonals', help='Train offdiagonal matrix only. Rest of the matrix will be masked',
+                              action='store_true')
 
     # model-specific parsers
     model_parser = argparse.ArgumentParser(add_help=False)
@@ -239,7 +245,11 @@ def train(args, model, train_loader, val_loader, device):
     # setup loss function
     def loss(batch, result):
         te = 0.0001
-        diff = batch[SchNOrbProperties.dm_prop] - result[SchNOrbProperties.dm_prop]
+        offdiag_size = int(result[SchNOrbProperties.dm_prop].shape[1]/2)
+        if args.offdiagonals:
+            diff = batch[SchNOrbProperties.dm_prop][:,:offdiag_size,offdiag_size:] - result[SchNOrbProperties.dm_prop][:,:offdiag_size,offdiag_size:]
+        else:
+            diff = batch[SchNOrbProperties.dm_prop] - result[SchNOrbProperties.dm_prop]
         diff = diff ** 2
         err_ham = torch.mean(diff)
 
@@ -265,11 +275,18 @@ def train(args, model, train_loader, val_loader, device):
 def evaluate(args, model, train_loader, val_loader, test_loader, device):
     header = ['Subset', SchNOrbProperties.dm_prop + ' MAE',
               SchNOrbProperties.dm_prop + ' RMSE']
-
-    metrics = [
-        MeanAbsoluteError(SchNOrbProperties.dm_prop),
-        RootMeanSquaredError(SchNOrbProperties.dm_prop)
-    ]
+    
+    if args.offdiagonals:
+        metrics = [
+            MeanAbsoluteError("dm_offdiag"),
+            RootMeanSquaredError("dm_offdiag")
+        ]
+    
+    else:
+        metrics = [
+            MeanAbsoluteError(SchNOrbProperties.dm_prop),
+            RootMeanSquaredError(SchNOrbProperties.dm_prop)
+        ]
 
 
     results = []
@@ -305,6 +322,10 @@ def evaluate_dataset(metrics, model, loader, device):
             for k, v in batch.items()
         }
         result = model(batch)
+        if args.offdiagonals:
+            size = int(result["dm"].shape[1]/2)
+            result["dm_offdiag"] = result["dm"][:,:size,size:]
+            batch["dm_offdiag"] = batch["dm"][:,:size,size:]
 
         for metric in metrics:
             metric.add_batch(batch, result)
@@ -389,7 +410,7 @@ def get_model(train_args, basisdef, orbital_energies, mean, stddev,
                                         quambo=train_args.quambo,
                                         mean=mean, stddev=stddev,
                                         return_forces=train_args.forces,
-                                        create_graph=train_args.forces)
+                                        create_graph=train_args.forces,)
     print('Outnet params: %.2fM' % (
             sum(p.numel() for p in hamiltonian.parameters()) / 1000000.0))
     schnorb = AtomisticModel(schnorb, hamiltonian)
