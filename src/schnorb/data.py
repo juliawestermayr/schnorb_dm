@@ -913,8 +913,8 @@ class SchNOrbAtomsData(spk.data.AtomsData):
         at, properties = self.get_properties(idx)
 
         if self.add_rotations:
-            H = properties[SchNOrbProperties.ham_prop].numpy()
-            S = properties[SchNOrbProperties.ov_prop].numpy()
+            H = properties[SchNOrbProperties.dm_prop].numpy()
+            S = properties[SchNOrbProperties.dm_prop].numpy()
 
             isnan = True
             while isnan:
@@ -936,6 +936,7 @@ class SchNOrbAtomsData(spk.data.AtomsData):
             properties[SchNOrbProperties.R] = torch.FloatTensor(pos_rot)
             properties[SchNOrbProperties.ham_prop] = torch.FloatTensor(Hrot)
             properties[SchNOrbProperties.ov_prop] = torch.FloatTensor(Srot)
+            properties[SchNOrbProperties.dm_prop] = torch.FloatTensor(Hrot)
             if SchNOrbProperties.f_prop in properties.keys():
                 properties[SchNOrbProperties.f_prop] = torch.FloatTensor(force_rot)
 
